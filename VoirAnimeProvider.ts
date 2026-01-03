@@ -44,39 +44,41 @@ class Provider {
             const $ = await LoadDoc(html);
             const results: SearchResult[] = [];
             
-            // VoirAnime structure: article.item ou div.film-item
-            const animeItems = $("article.item, div.item, article[class*='post']");
-            console.log(`📺 Éléments trouvés: ${animeItems.length()}`);
+            // VoirAnime: Utiliser TOUS les liens et extraire info
+            const allLinks = $("a[href*='/anime/'], a[href*='/series/'], a");
+            console.log(`🔗 Tous les liens: ${allLinks.length()}`);
             
-            if (animeItems.length() === 0) {
-                console.warn(`⚠️ Aucun résultat avec sélecteurs standards`);
-                // Fallback: tous les liens
-                const allLinks = $("a[href*='/anime/']");
-                console.log(`🔗 Liens fallback: ${allLinks.length()}`);
-            }
+            const seenUrls = new Set<string>();
             
-            for (let i = 0; i < animeItems.length(); i++) {
-                const item = animeItems.eq(i);
+            for (let i = 0; i < allLinks.length(); i++) {
+                const link = allLinks.eq(i);
+                const url = link.attr("href");
                 
-                // Titre
-                const title = item.find("h2, h3, .title, .film-name").text().trim() ||
-                             item.find("a").attr("title") ||
-                             item.find("a").text().trim();
+                if (!url) continue;
                 
-                // URL
-                const url = item.find("a").attr("href");
-                
-                if (!title || !url) {
-                    console.log(`⚠️ Item ${i}: titre ou URL manquant`);
+                // Filtrer seulement les liens d'anime
+                if (!url.includes('/anime/') && !url.includes('/series/') && !url.includes('/watch/')) {
                     continue;
                 }
                 
-                console.log(`✅ [${i + 1}] "${title}" -> ${url}`);
+                // Éviter doublons
+                if (seenUrls.has(url)) continue;
+                seenUrls.add(url);
                 
-                // Score de correspondance
+                // Extraire titre (plusieurs sources)
+                const title = link.attr("title") || 
+                             link.find("h2, h3").text().trim() ||
+                             link.text().trim();
+                
+                if (!title || title.length < 2) continue;
+                
+                console.log(`📺 [${i}] "${title}" -> ${url}`);
+                
+                // Score de correspondance avec seuil PLUS BAS
                 const matchScore = this.calculateMatchScore(title, normalizedQuery);
                 
-                if (matchScore > 0.3) {
+                // SEUIL ABAISSÉ à 0.2 au lieu de 0.3
+                if (matchScore > 0.2) {
                     const fullUrl = url.startsWith('http') ? url : this.SITE_URL + url;
                     
                     results.push({
@@ -314,26 +316,42 @@ class Provider {
         const normTitle = this.normalize(title);
         const normQuery = this.normalize(query);
         
+        console.log(`🔍 Comparaison: "${normTitle}" vs "${normQuery}"`);
+        
         // Exact match
-        if (normTitle === normQuery) return 1.0;
+        if (normTitle === normQuery) {
+            console.log(`✅ Match exact!`);
+            return 1.0;
+        }
         
         // Contains
-        if (normTitle.includes(normQuery) || normQuery.includes(normTitle)) {
+        if (normTitle.includes(normQuery)) {
+            console.log(`✅ Contains (0.9)`);
+            return 0.9;
+        }
+        
+        if (normQuery.includes(normTitle)) {
+            console.log(`✅ Reverse contains (0.8)`);
             return 0.8;
         }
         
         // Word match
-        const titleWords = normTitle.split(' ');
-        const queryWords = normQuery.split(' ');
+        const titleWords = normTitle.split(' ').filter(w => w.length > 0);
+        const queryWords = normQuery.split(' ').filter(w => w.length > 0);
         let matches = 0;
         
         for (const qWord of queryWords) {
-            if (titleWords.some(tWord => tWord.includes(qWord) || qWord.includes(tWord))) {
-                matches++;
+            for (const tWord of titleWords) {
+                if (tWord.includes(qWord) || qWord.includes(tWord)) {
+                    matches++;
+                    break;
+                }
             }
         }
         
-        return matches / queryWords.length;
+        const score = matches / queryWords.length;
+        console.log(`📊 Score mots: ${matches}/${queryWords.length} = ${score.toFixed(2)}`);
+        return score;
     }
 
     private normalize(str: string): string {
