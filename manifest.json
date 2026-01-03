@@ -1,0 +1,15 @@
+{
+  "id": "voiranime-provider",
+  "name": "VoirAnime",
+  "version": "1.0.0",
+  "manifestURI": "https://raw.githubusercontent.com/Xiu991/VoirAnimeSeanime/main/manifest.json",
+  "language": "typescript",
+  "type": "onlinestream-provider",
+  "description": "VoirAnime is an online streaming provider for animes in French (VOSTFR/VF)",
+  "author": "Xiu991",
+  "icon": "https://raw.githubusercontent.com/Xiu991/VoirAnimeSeanime/main/icon.png",
+  "website": "https://v6.voiranime.com",
+  "lang": "fr",
+  "payloadURI": "https://raw.githubusercontent.com/Xiu991/VoirAnimeSeanime/main/VoirAnimeProvider.ts",
+  "isDevelopement": false
+}
